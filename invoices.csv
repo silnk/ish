@@ -1,1 +1,0 @@
-InvoiceID,Date,CustomerName,CustomerPhone,CustomerEmail,CustomerAddress,BusinessName,BusinessAddress,BusinessPhone,BusinessEmail,CRNo,VATNo,LogoFileName,ItemsJSON,SubTotal,TaxTotal,GrandTotal,PaidStatus
