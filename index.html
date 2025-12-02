@@ -273,7 +273,79 @@ function saveInvCSV(){
   const csv='InvoiceID,Date,CustomerName,CustomerPhone,CustomerEmail,CustomerAddress,BusinessName,BusinessAddress,BusinessPhone,BusinessEmail,CRNo,VATNo,LogoFileName,ItemsJSON,SubTotal,TaxTotal,GrandTotal,PaidStatus\n'+invoices.map(r=>r.map(enc).join(',')).join('\n');
   dl('invoices.csv',csv);
 }
-function printInv(){
+function printInv(function printInv(){
+  const biz=JSON.parse(localStorage.getItem('biz')||'{}');
+  const [id,dt]=[$('#iNum').value,$('#iDate').value];
+  const [cn,cp,ce,ca]=[$('#cName').value.trim(),$('#cPhone').value.trim(),$('#cEmail').value.trim(),$('#cAddr').value.trim()];
+  const [sub,tax,gt]=[$('#st').textContent,$('#tx').textContent,$('#gt').textContent];
+  const paid=$('#paid').checked;
+
+  // ---- build printable HTML ----
+  let h=`
+  <style>
+    @page{size:A4; margin:10mm}
+    html,body{margin:0;padding:0;background:#fff;font-family:Arial,Helvetica,sans-serif;font-size:11pt;color:#000}
+    .inv{position:relative;width:190mm;min-height:277mm;margin:0 auto;display:flex;flex-direction:column}
+    .inv *{box-sizing:border-box}
+    .hdr{display:flex;align-items:center;gap:3rem;margin-bottom:2rem}
+    .hdr img{max-height:60px}
+    .hdr h2{margin:0;font-size:20pt;font-weight:700}
+    .hdr small{display:block;font-size:10pt;margin-top:4px;color:#555}
+    .mid{display:flex;justify-content:space-between;margin-bottom:1.5rem}
+    .mid div h3{margin:0 0 4px;font-size:14pt}
+    .mid div p{margin:2px 0;font-size:10pt}
+    table{width:100%;border-collapse:collapse;margin-bottom:1rem;font-size:10pt}
+    th,td{padding:6px 8px;border:1px solid #ccc}
+    th{background:#f5f5f5;font-weight:700}
+    .tot{text-align:right;margin-top:1rem;font-size:11pt}
+    .tot b{font-size:13pt}
+    .paid{font-size:14pt;font-weight:700;color:#10b981;margin-top:1rem}
+    .water{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-30deg);opacity:.08;z-index:0;pointer-events:none}
+    .water img{max-width:300px}
+  </style>
+  <div class="inv">
+    ${logoB64?`<div class="water"><img src="${logoB64}"></div>`:''}
+    <div class="hdr">
+      ${logoB64?`<img src="${logoB64}">`:''}
+      <div>
+        <h2>${biz.name||'My Business'}</h2>
+        <small>${biz.address||''} • ${biz.phone||''} • ${biz.email||''} • CR: ${biz.cr||''} • VAT: ${biz.vat||''}</small>
+      </div>
+    </div>
+
+    <div class="mid">
+      <div>
+        <h3>Invoice #${id}</h3>
+        <p>Date: ${dt}</p>
+      </div>
+      <div>
+        <h3>Bill To</h3>
+        <p>${cn}</p>
+        <p>${ca}</p>
+        <p>${cp} • ${ce}</p>
+      </div>
+    </div>
+
+    <table>
+      <thead><tr><th style="width:50%">Description</th><th>Qty</th><th>Unit Price</th><th>Disc %</th><th>Total</th></tr></thead>
+      <tbody>`;
+  items.forEach(it=>{
+    h+=`<tr><td>${it.desc}</td><td>${it.qty}</td><td>${it.price.toFixed(2)}</td><td>${it.disc}</td><td>${it.total.toFixed(2)}</td></tr>`;
+  });
+  h+=`</tbody></table>
+
+    <div class="tot">
+      <div>Subtotal: <b>${sub}</b></div>
+      <div>Tax: <b>${tax}</b></div>
+      <div>Grand Total: <b>${gt}</b></div>
+      ${paid?'<div class="paid">PAID</div>':''}
+    </div>
+  </div>`;
+
+  $('#printArea').innerHTML=h;
+  window.print();
+}
+){
   const biz=JSON.parse(localStorage.getItem('biz')||'{}');
   const [id,dt]=[$('#iNum').value,$('#iDate').value];
   const [cn,cp,ce,ca]=[$('#cName').value.trim(),$('#cPhone').value.trim(),$('#cEmail').value.trim(),$('#cAddr').value.trim()];
