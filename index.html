@@ -1,1 +1,418 @@
-.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Personal Billing System</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+:root{
+  --p:#2563eb; --a:#10b981; --bg:#f3f4f6; --card:#fff;
+  --txt:#111827; --sub:#6b7280;
+}
+* {box-sizing:border-box; font-family:system-ui, sans-serif; margin:0; padding:0;}
+body{background:var(--bg); color:var(--txt);}
+header{display:flex; align-items:center; gap:1rem; padding:1rem; background:var(--card); box-shadow:0 1px 3px rgba(0,0,0,.1);}
+header img{max-height:48px;}
+nav{display:flex; gap:.5rem;}
+nav button{
+  padding:.5rem 1rem; border:none; background:transparent; color:var(--p); cursor:pointer; font-weight:600; border-radius:.375rem;
+}
+nav button.active{background:var(--p); color:#fff;}
+.tab{display:none; padding:1rem; max-width:900px; margin:auto;}
+.tab.active{display:block;}
+.card{background:var(--card); padding:1rem; border-radius:.5rem; box-shadow:0 1px 3px rgba(0,0,0,.05); margin-bottom:1rem}
+.row{display:flex; gap:1rem; flex-wrap:wrap}
+.col{flex:1 1 220px; display:flex; flex-direction:column; gap:.5rem}
+label{font-size:.875rem; color:var(--sub)}
+input,textarea,select{width:100%; padding:.5rem; border:1px solid #d1d5db; border-radius:.375rem}
+button{padding:.5rem 1rem; border:none; border-radius:.375rem; background:var(--p); color:#fff; cursor:pointer}
+button.small{padding:.25rem .5rem; font-size:.875rem}
+table{width:100%; border-collapse:collapse; font-size:.875rem}
+th,td{padding:.5rem; text-align:left; border-bottom:1px solid #e5e7eb}
+tbody tr:hover{background:#f9fafb}
+.toast{position:fixed; bottom:1rem; right:1rem; background:#111827; color:#fff; padding:.75rem 1rem; border-radius:.375rem; opacity:0; transition:.3s}
+.toast.show{opacity:1}
+@media print{
+  body,html{background:#fff}
+  header,nav,.no-print{display:none}
+  .tab{display:block !important}
+  .invoice-wrap{width:210mm; min-height:297mm; margin:0; padding:10mm; box-shadow:none}
+  .invoice-logo{max-height:60px}
+  .watermark{position:fixed; inset:0; background:center/contain no-repeat; opacity:.08; pointer-events:none; z-index:0}
+}
+</style>
+</head>
+<body>
+<header>
+  <img id="logoPreview" src="" alt="Logo" style="display:none">
+  <div>
+    <h1 id="bizName">My Business</h1>
+    <small id="bizContact"></small>
+  </div>
+</header>
+<nav>
+  <button class="tabBtn active" data-tab="settings">Settings</button>
+  <button class="tabBtn" data-tab="products">Products</button>
+  <button class="tabBtn" data-tab="invoice">New Invoice</button>
+  <button class="tabBtn" data-tab="browse">Browse Invoices</button>
+</nav>
+
+<div id="settings" class="tab active">
+  <div class="card">
+    <h2>Business Settings</h2>
+    <div class="row">
+      <div class="col"><label>Business Name</label><input id="bizNameIn"></div>
+      <div class="col"><label>Address</label><textarea id="bizAddr"></textarea></div>
+      <div class="col"><label>Phone</label><input id="bizPhone"></div>
+      <div class="col"><label>Email</label><input id="bizEmail"></div>
+      <div class="col"><label>CR No</label><input id="bizCR"></div>
+      <div class="col"><label>VAT No</label><input id="bizVAT"></div>
+      <div class="col"><label>Upload Logo</label><input type="file" id="logoFile" accept="image/*"></div>
+    </div>
+    <button onclick="saveSettings()">Save Settings</button>
+  </div>
+</div>
+
+<div id="products" class="tab">
+  <div class="card row" style="align-items:center">
+    <input type="file" id="prodFile" accept=".csv" class="no-print">
+    <button onclick="loadProdCSV()">Load products.csv</button>
+    <button onclick="saveProdCSV()">Save products.csv</button>
+    <input placeholder="Search products…" oninput="searchProd(this.value)" style="max-width:200px; margin-left:auto">
+  </div>
+  <div class="card">
+    <h3>Product List</h3>
+    <table id="prodTable"><thead><tr><th>Code</th><th>Description</th><th>Unit Price</th><th>Tax %</th><th class="no-print"></th></tr></thead><tbody></tbody></table>
+    <div class="row no-print" style="margin-top:.5rem">
+      <input placeholder="Code" id="pCode">
+      <input placeholder="Description" id="pDesc">
+      <input placeholder="Unit Price" id="pPrice" type="number" step="0.01">
+      <input placeholder="Tax %" id="pTax" type="number" step="0.01">
+      <button onclick="addProduct()">Add</button>
+    </div>
+  </div>
+</div>
+
+<div id="invoice" class="tab">
+  <div class="card">
+    <div class="row">
+      <div class="col"><label>Invoice #</label><input id="invID" readonly></div>
+      <div class="col"><label>Date</label><input id="invDate" type="date"></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Customer</h3>
+    <div class="row">
+      <div class="col"><label>Name</label><input id="cName"></div>
+      <div class="col"><label>Phone</label><input id="cPhone"></div>
+      <div class="col"><label>Email</label><input id="cEmail"></div>
+      <div class="col"><label>Address</label><textarea id="cAddr"></textarea></div>
+    </div>
+  </div>
+  <div class="card">
+    <h3>Line Items</h3>
+    <table id="lineTable"><thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Disc %</th><th>Total</th><th class="no-print"></th></tr></thead><tbody></tbody></table>
+    <div class="row no-print" style="margin-top:.5rem; align-items:end">
+      <input placeholder="Type to search…" id="itemSearch" oninput="searchItem(this.value)" style="flex:2">
+      <input placeholder="Qty" id="itemQty" type="number" value="1" min="1">
+      <input placeholder="Disc %" id="itemDisc" type="number" value="0" min="0" max="100" step="0.01">
+      <button onclick="addLine()">Add</button>
+    </div>
+    <div id="searchDrop" style="border:1px solid #d1d5db; max-height:150px; overflow:auto; background:#fff; display:none"></div>
+  </div>
+  <div class="card row" style="justify-content:flex-end; gap:1rem">
+    <div>
+      <div>Subtotal: <b id="subTotal">0.00</b></div>
+      <div>Tax: <b id="taxTotal">0.00</b></div>
+      <div>Grand Total: <b id="grandTotal">0.00</b></div>
+    </div>
+  </div>
+  <div class="card no-print">
+    <label><input type="checkbox" id="paid"> Mark as Paid</label>
+    <button onclick="saveInvoice()">Save Invoice</button>
+    <button onclick="window.print()">Print</button>
+  </div>
+  <div id="invPrint" class="invoice-wrap" style="display:none"></div>
+</div>
+
+<div id="browse" class="tab">
+  <div class="card row" style="align-items:center">
+    <input placeholder="Search invoices…" oninput="browseSearch(this.value)" style="max-width:250px">
+  </div>
+  <div class="card">
+    <table id="invTable"><thead><tr><th>Invoice #</th><th>Date</th><th>Customer</th><th>Total</th><th>Paid</th></tr></thead><tbody></tbody></table>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+<script>
+/* ---------- helpers ---------- */
+const $=q=>document.querySelector(q);
+const toast=(m,s=3000)=>{const t=$('#toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),s);}
+function csvEscape(v){return typeof v==='string' && (v.includes(',') || v.includes('"')) ? '"' + v.replace(/"/g,'""') + '"' : v;}
+function downloadCSV(filename,csv){const b=new Blob([csv],{type:'text/csv'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=filename; a.click(); URL.revokeObjectURL(u);}
+function parseCSV(txt){
+  const lines=txt.trim().split(/\r?\n/); const res=[];
+  for(let line of lines){
+    const row=[]; let cur=''; let inQ=false;
+    for(let i=0;i<line.length;i++){
+      const c=line[i];
+      if(c==='"' && line[i-1]!=='\\'){inQ=!inQ; continue;}
+      if(c===',' && !inQ){row.push(cur); cur=''; continue;}
+      cur+=c;
+    }
+    row.push(cur); res.push(row);
+  }
+  return res;
+}
+/* ---------- settings ---------- */
+function loadSettings(){
+  const s=JSON.parse(localStorage.getItem('biz')||'{}');
+  $('#bizName').textContent=s.name||'My Business';
+  $('#bizNameIn').value=s.name||'';
+  $('#bizAddr').value=s.address||'';
+  $('#bizPhone').value=s.phone||'';
+  $('#bizEmail').value=s.email||'';
+  $('#bizCR').value=s.cr||'';
+  $('#bizVAT').value=s.vat||'';
+  if(s.logo){$('#logoPreview').src=s.logo; $('#logoPreview').style.display='block';}
+  $('#bizContact').textContent=[s.phone,s.email].filter(Boolean).join(' • ');
+}
+function saveSettings(){
+  const s={
+    name:$('#bizNameIn').value.trim()||'My Business',
+    address:$('#bizAddr').value.trim(),
+    phone:$('#bizPhone').value.trim(),
+    email:$('#bizEmail').value.trim(),
+    cr:$('#bizCR').value.trim(),
+    vat:$('#bizVAT').value.trim(),
+    logo:localStorage.getItem('logoBase64')||''
+  };
+  localStorage.setItem('biz',JSON.stringify(s));
+  loadSettings();
+  toast('Settings saved');
+}
+$('#logoFile').addEventListener('change',e=>{
+  const f=e.target.files[0]; if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    const b=ev.target.result;
+    localStorage.setItem('logoBase64',b);
+    $('#logoPreview').src=b; $('#logoPreview').style.display='block';
+  };
+  r.readAsDataURL(f);
+});
+/* ---------- products ---------- */
+let products=[];
+function renderProdTable(arr=products){
+  const t=$('#prodTable tbody'); t.innerHTML='';
+  arr.forEach((p,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+    <td>${p[0]}</td>
+    <td>${p[1]}</td>
+    <td>${p[2]}</td>
+    <td>${p[3]}</td>
+    <td class="no-print"><button class="small" onclick="delProd(${i})">Del</button></td>`;
+    t.appendChild(tr);
+  });
+}
+function loadProdCSV(){
+  const f=$('#prodFile').files[0]; if(!f){toast('Choose products.csv'); return;}
+  const r=new FileReader();
+  r.onload=e=>{
+    const data=parseCSV(e.target.result);
+    products=data.slice(1).filter(r=>r.length>=4);
+    renderProdTable();
+    toast('Products loaded');
+  };
+  r.readAsText(f);
+}
+function saveProdCSV(){
+  if(!products.length){toast('No products'); return;}
+  let csv='ProductCode,Description,UnitPrice,TaxPercent\n';
+  products.forEach(p=>csv+=p.map(csvEscape).join(',')+'\n');
+  downloadCSV('products.csv',csv);
+}
+function addProduct(){
+  const c=$('#pCode').value.trim(), d=$('#pDesc').value.trim(), p=parseFloat($('#pPrice').value), t=parseFloat($('#pTax').value)||0;
+  if(!c||!d||isNaN(p)){toast('Fill fields correctly'); return;}
+  products.push([c,d,p,t]);
+  renderProdTable();
+  $('#pCode').value=$('#pDesc').value=$('#pPrice').value=$('#pTax').value='';
+}
+function delProd(i){products.splice(i,1); renderProdTable();}
+function searchProd(v){
+  const f=products.filter(p=>p[1].toLowerCase().includes(v.toLowerCase())||p[0].toLowerCase().includes(v.toLowerCase()));
+  renderProdTable(f);
+}
+/* ---------- invoice ---------- */
+let lines=[];
+function genInvID(){
+  if(!invoices.length) return '0001';
+  const max=Math.max(...invoices.map(r=>parseInt(r[0])));
+  return String(max+1).padStart(4,'0');
+}
+function resetInvoice(){
+  $('#invID').value=genInvID();
+  $('#invDate').value=new Date().toISOString().slice(0,10);
+  $('#cName').value=$('#cPhone').value=$('#cEmail').value=$('#cAddr').value='';
+  lines=[]; renderLines(); calc();
+}
+function renderLines(){
+  const t=$('#lineTable tbody'); t.innerHTML='';
+  lines.forEach((l,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`
+    <td>${l.desc}</td>
+    <td>${l.qty}</td>
+    <td>${l.unit.toFixed(2)}</td>
+    <td>${l.disc}</td>
+    <td>${l.total.toFixed(2)}</td>
+    <td class="no-print"><button class="small" onclick="delLine(${i})">Del</button></td>`;
+    t.appendChild(tr);
+  });
+}
+function calc(){
+  let sub=0, tax=0;
+  lines.forEach(l=>{
+    const amt=l.qty*l.unit*(1-l.disc/100);
+    sub+=amt;
+    tax+=amt*(l.tax/100);
+  });
+  $('#subTotal').textContent=sub.toFixed(2);
+  $('#taxTotal').textContent=tax.toFixed(2);
+  $('#grandTotal').textContent=(sub+tax).toFixed(2);
+}
+function addLine(){
+  const desc=$('#itemSearch').value.trim();
+  const qty=parseInt($('#itemQty').value)||1;
+  const disc=parseFloat($('#itemDisc').value)||0;
+  const p=products.find(pr=>pr[1]===desc);
+  if(!p){toast('Select valid product'); return;}
+  const unit=parseFloat(p[2]), tx=parseFloat(p[3]);
+  const total=qty*unit*(1-disc/100);
+  lines.push({desc,qty,unit,disc,tax:tx,total});
+  $('#itemSearch').value=$('#itemQty').value='1'; $('#itemDisc').value='0';
+  $('#searchDrop').style.display='none';
+  renderLines(); calc();
+}
+function delLine(i){lines.splice(i,1); renderLines(); calc();}
+function searchItem(v){
+  const drop=$('#searchDrop');
+  if(!v){drop.style.display='none'; return;}
+  const f=products.filter(p=>p[1].toLowerCase().includes(v.toLowerCase()));
+  drop.innerHTML='';
+  f.forEach(p=>{
+    const d=document.createElement('div');
+    d.textContent=p[1]; d.style.padding='.5rem'; d.style.cursor='pointer';
+    d.onclick=()=>{$('#itemSearch').value=p[1]; drop.style.display='none';};
+    drop.appendChild(d);
+  });
+  drop.style.display=f.length?'block':'none';
+}
+function saveInvoice(){
+  if(!lines.length){toast('Add items'); return;}
+  const invID=$('#invID').value, dt=$('#invDate').value, cName=$('#cName').value.trim(), cPhone=$('#cPhone').value.trim(), cEmail=$('#cEmail').value.trim(), cAddr=$('#cAddr').value.trim();
+  if(!cName){toast('Customer name required'); return;}
+  const biz=JSON.parse(localStorage.getItem('biz')||'{}');
+  const items=JSON.stringify(lines);
+  const sub=parseFloat($('#subTotal').textContent), tax=parseFloat($('#taxTotal').textContent), grand=parseFloat($('#grandTotal').textContent), paid=$('#paid').checked?'Yes':'No';
+  const row=[invID,dt,cName,cPhone,cEmail,cAddr,biz.name||'',biz.address||'',biz.phone||'',biz.email||'',biz.cr||'',biz.vat||'',localStorage.getItem('logoFileName')||'',items,sub,tax,grand,paid];
+  invoices.push(row);
+  downloadCSV('invoices.csv','InvoiceID,Date,CustomerName,CustomerPhone,CustomerEmail,CustomerAddress,BusinessName,BusinessAddress,BusinessPhone,BusinessEmail,CRNo,VATNo,LogoFileName,ItemsJSON,SubTotal,TaxTotal,GrandTotal,PaidStatus\n'+invoices.map(r=>r.map(csvEscape).join(',')).join('\n'));
+  toast('Invoice saved');
+  resetInvoice();
+  loadBrowse();
+}
+/* ---------- browse ---------- */
+let invoices=[];
+function loadInvCSV(){
+  const f=$('#invFile'); if(!f.files.length){return;}
+  const r=new FileReader();
+  r.onload=e=>{
+    const data=parseCSV(e.target.result);
+    invoices=data.slice(1).filter(r=>r.length>=18);
+    loadBrowse();
+  };
+  r.readAsText(f.files[0]);
+}
+function loadBrowse(){
+  const t=$('#invTable tbody'); t.innerHTML='';
+  invoices.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><a href="#" onclick="viewInv('${r[0]}'); return false">${r[0]}</a></td><td>${r[1]}</td><td>${r[2]}</td><td>${parseFloat(r[16]).toFixed(2)}</td><td>${r[17]}</td>`;
+    t.appendChild(tr);
+  });
+}
+function browseSearch(v){
+  const rows=Array.from($('#invTable tbody').rows);
+  rows.forEach(row=>row.style.display=(row.textContent.toLowerCase().includes(v.toLowerCase())?'':'none'));
+}
+function viewInv(id){
+  const r=invoices.find(rr=>rr[0]===id); if(!r){toast('Invoice not found'); return;}
+  const [invID,dt,cName,cPhone,cEmail,cAddr,bizName,bizAddr,bizPhone,bizEmail,bizCR,bizVAT,logoFn,itemsJSON,sub,tax,grand,paid]=r;
+  const lines=JSON.parse(itemsJSON);
+  const biz=JSON.parse(localStorage.getItem('biz')||'{}');
+  const logo=biz.logo||'';
+  let html=`
+  <div class="invoice-wrap">
+  ${logo?`<div class="watermark" style="background-image:url('${logo}')"></div>`:''}
+  <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem">
+    ${logo?`<img src="${logo}" class="invoice-logo">`:''}
+    <div>
+      <h2>${bizName}</h2>
+      <div>${bizAddr} • ${bizPhone} • ${bizEmail}</div>
+      <div>CR: ${bizCR} • VAT: ${bizVAT}</div>
+    </div>
+  </div>
+  <hr>
+  <div class="row" style="margin-top:1rem">
+    <div class="col">
+      <h3>Invoice #${invID}</h3>
+      <div>Date: ${dt}</div>
+    </div>
+    <div class="col">
+      <h3>Bill To</h3>
+      <div>${cName}</div>
+      <div>${cAddr}</div>
+      <div>${cPhone} • ${cEmail}</div>
+    </div>
+  </div>
+  <table style="margin-top:1rem; width:100%">
+    <thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Disc %</th><th>Total</th></tr></thead>
+    <tbody>`;
+  lines.forEach(l=>{
+    html+=`<tr><td>${l.desc}</td><td>${l.qty}</td><td>${l.unit.toFixed(2)}</td><td>${l.disc}</td><td>${l.total.toFixed(2)}</td></tr>`;
+  });
+  html+=`</tbody></table>
+  <div style="margin-top:1rem; text-align:right">
+    <div>Subtotal: <b>${parseFloat(sub).toFixed(2)}</b></div>
+    <div>Tax: <b>${parseFloat(tax).toFixed(2)}</b></div>
+    <div>Grand Total: <b>${parseFloat(grand).toFixed(2)}</b></div>
+    ${paid==='Yes'?'<div style="margin-top:1rem; color:var(--a); font-weight:bold">PAID</div>':''}
+  </div>
+  </div>`;
+  const p=document.createElement('div');
+  p.innerHTML=html;
+  document.body.appendChild(p);
+  window.print();
+  document.body.removeChild(p);
+}
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tabBtn').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.tabBtn').forEach(t=>t.classList.remove('active'));
+    $(`#${b.dataset.tab}`).classList.add('active');
+    b.classList.add('active');
+    if(b.dataset.tab==='invoice') resetInvoice();
+    if(b.dataset.tab==='browse') loadBrowse();
+  };
+});
+/* ---------- init ---------- */
+loadSettings();
+$('#invDate').value=new Date().toISOString().slice(0,10);
+</script>
+</body>
+</html>
