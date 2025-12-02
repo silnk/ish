@@ -5,18 +5,13 @@
 <title>Personal Billing System</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-:root{
-  --p:#2563eb; --a:#10b981; --bg:#f3f4f6; --card:#fff;
-  --txt:#111827; --sub:#6b7280;
-}
-* {box-sizing:border-box; font-family:system-ui, sans-serif; margin:0; padding:0;}
+:root{--p:#2563eb; --a:#10b981; --bg:#f3f4f6; --card:#fff; --txt:#111827; --sub:#6b7280;}
+*{box-sizing:border-box; font-family:system-ui, sans-serif; margin:0; padding:0;}
 body{background:var(--bg); color:var(--txt);}
 header{display:flex; align-items:center; gap:1rem; padding:1rem; background:var(--card); box-shadow:0 1px 3px rgba(0,0,0,.1);}
 header img{max-height:48px;}
 nav{display:flex; gap:.5rem;}
-nav button{
-  padding:.5rem 1rem; border:none; background:transparent; color:var(--p); cursor:pointer; font-weight:600; border-radius:.375rem;
-}
+nav button{padding:.5rem 1rem; border:none; background:transparent; color:var(--p); cursor:pointer; font-weight:600; border-radius:.375rem;}
 nav button.active{background:var(--p); color:#fff;}
 .tab{display:none; padding:1rem; max-width:900px; margin:auto;}
 .tab.active{display:block;}
@@ -32,21 +27,19 @@ th,td{padding:.5rem; text-align:left; border-bottom:1px solid #e5e7eb}
 tbody tr:hover{background:#f9fafb}
 .toast{position:fixed; bottom:1rem; right:1rem; background:#111827; color:#fff; padding:.75rem 1rem; border-radius:.375rem; opacity:0; transition:.3s}
 .toast.show{opacity:1}
+#printArea{display:none}
 @media print{
-  body,html{background:#fff}
-  header,nav,.no-print{display:none}
-  .tab{display:block !important}
-  .invoice-wrap{width:210mm; min-height:297mm; margin:0; padding:10mm; box-shadow:none}
-  .invoice-logo{max-height:60px}
-  .watermark{position:fixed; inset:0; background:center/contain no-repeat; opacity:.08; pointer-events:none; z-index:0}
+  body *{visibility:hidden}
+  #printArea, #printArea *{visibility:visible}
+  #printArea{position:fixed; inset:0; background:#fff; padding:10mm; width:210mm; min-height:297mm; margin:0 auto; box-shadow:none}
 }
 </style>
 </head>
 <body>
 <header>
-  <img id="logoPreview" src="" alt="Logo" style="display:none">
+  <img id="logoPrev" src="" alt="" style="display:none; max-height:60px">
   <div>
-    <h1 id="bizName">My Business</h1>
+    <h1 id="bizTitle">My Business</h1>
     <small id="bizContact"></small>
   </div>
 </header>
@@ -54,50 +47,52 @@ tbody tr:hover{background:#f9fafb}
   <button class="tabBtn active" data-tab="settings">Settings</button>
   <button class="tabBtn" data-tab="products">Products</button>
   <button class="tabBtn" data-tab="invoice">New Invoice</button>
-  <button class="tabBtn" data-tab="browse">Browse Invoices</button>
+  <button class="tabBtn" data-tab="browse">Browse</button>
 </nav>
 
+<!-- SETTINGS -->
 <div id="settings" class="tab active">
   <div class="card">
     <h2>Business Settings</h2>
     <div class="row">
-      <div class="col"><label>Business Name</label><input id="bizNameIn"></div>
-      <div class="col"><label>Address</label><textarea id="bizAddr"></textarea></div>
-      <div class="col"><label>Phone</label><input id="bizPhone"></div>
-      <div class="col"><label>Email</label><input id="bizEmail"></div>
-      <div class="col"><label>CR No</label><input id="bizCR"></div>
-      <div class="col"><label>VAT No</label><input id="bizVAT"></div>
-      <div class="col"><label>Upload Logo</label><input type="file" id="logoFile" accept="image/*"></div>
+      <div class="col"><label>Name</label><input id="bName"></div>
+      <div class="col"><label>Address</label><textarea id="bAddr"></textarea></div>
+      <div class="col"><label>Phone</label><input id="bPhone"></div>
+      <div class="col"><label>Email</label><input id="bEmail"></div>
+      <div class="col"><label>CR No</label><input id="bCR"></div>
+      <div class="col"><label>VAT No</label><input id="bVAT"></div>
+      <div class="col"><label>Logo</label><input type="file" id="bLogo" accept="image/*"></div>
     </div>
-    <button onclick="saveSettings()">Save Settings</button>
+    <button onclick="saveBiz()">Save</button>
   </div>
 </div>
 
+<!-- PRODUCTS -->
 <div id="products" class="tab">
   <div class="card row" style="align-items:center">
-    <input type="file" id="prodFile" accept=".csv" class="no-print">
-    <button onclick="loadProdCSV()">Load products.csv</button>
-    <button onclick="saveProdCSV()">Save products.csv</button>
-    <input placeholder="Search products…" oninput="searchProd(this.value)" style="max-width:200px; margin-left:auto">
+    <input type="file" id="prodCsv" accept=".csv" class="no-print">
+    <button onclick="loadProds()">Load products.csv</button>
+    <button onclick="saveProds()">Save products.csv</button>
+    <input placeholder="Search…" oninput="filterProd(this.value)" style="margin-left:auto; max-width:200px" class="no-print">
   </div>
   <div class="card">
-    <h3>Product List</h3>
-    <table id="prodTable"><thead><tr><th>Code</th><th>Description</th><th>Unit Price</th><th>Tax %</th><th class="no-print"></th></tr></thead><tbody></tbody></table>
+    <table id="prodTbl"><thead><tr><th>Code</th><th>Description</th><th>Price</th><th>Tax %</th><th class="no-print"></th></tr></thead><tbody></tbody></table>
     <div class="row no-print" style="margin-top:.5rem">
       <input placeholder="Code" id="pCode">
       <input placeholder="Description" id="pDesc">
-      <input placeholder="Unit Price" id="pPrice" type="number" step="0.01">
+      <input placeholder="Price" id="pPrice" type="number" step="0.01">
       <input placeholder="Tax %" id="pTax" type="number" step="0.01">
-      <button onclick="addProduct()">Add</button>
+      <button onclick="addProd()">Add</button>
     </div>
   </div>
 </div>
 
+<!-- NEW INVOICE -->
 <div id="invoice" class="tab">
   <div class="card">
     <div class="row">
-      <div class="col"><label>Invoice #</label><input id="invID" readonly></div>
-      <div class="col"><label>Date</label><input id="invDate" type="date"></div>
+      <div class="col"><label>Invoice #</label><input id="iNum" readonly></div>
+      <div class="col"><label>Date</label><input id="iDate" type="date"></div>
     </div>
   </div>
   <div class="card">
@@ -110,309 +105,262 @@ tbody tr:hover{background:#f9fafb}
     </div>
   </div>
   <div class="card">
-    <h3>Line Items</h3>
-    <table id="lineTable"><thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Disc %</th><th>Total</th><th class="no-print"></th></tr></thead><tbody></tbody></table>
-    <div class="row no-print" style="margin-top:.5rem; align-items:end">
-      <input placeholder="Type to search…" id="itemSearch" oninput="searchItem(this.value)" style="flex:2">
-      <input placeholder="Qty" id="itemQty" type="number" value="1" min="1">
-      <input placeholder="Disc %" id="itemDisc" type="number" value="0" min="0" max="100" step="0.01">
-      <button onclick="addLine()">Add</button>
+    <h3>Items</h3>
+    <table id="itemTbl"><thead><tr><th>Description</th><th>Qty</th><th>Price</th><th>Disc %</th><th>Total</th><th class="no-print"></th></tr></thead><tbody></tbody></table>
+    <div class="row no-print" style="margin-top:.5rem">
+      <input placeholder="Type to search…" id="itSearch" style="flex:2" oninput="suggestItem(this.value)">
+      <input placeholder="Qty" id="itQty" type="number" value="1" min="1">
+      <input placeholder="Disc %" id="itDisc" type="number" value="0" min="0" max="100" step="0.01">
+      <button onclick="addItem()">Add</button>
     </div>
-    <div id="searchDrop" style="border:1px solid #d1d5db; max-height:150px; overflow:auto; background:#fff; display:none"></div>
+    <div id="suggest" style="border:1px solid #d1d5db; max-height:150px; overflow:auto; background:#fff; display:none"></div>
   </div>
-  <div class="card row" style="justify-content:flex-end; gap:1rem">
+  <div class="card row" style="justify-content:flex-end">
     <div>
-      <div>Subtotal: <b id="subTotal">0.00</b></div>
-      <div>Tax: <b id="taxTotal">0.00</b></div>
-      <div>Grand Total: <b id="grandTotal">0.00</b></div>
+      <div>Subtotal: <b id="st">0.00</b></div>
+      <div>Tax: <b id="tx">0.00</b></div>
+      <div>Total: <b id="gt">0.00</b></div>
     </div>
   </div>
   <div class="card no-print">
-    <label><input type="checkbox" id="paid"> Mark as Paid</label>
-    <button onclick="saveInvoice()">Save Invoice</button>
-    <button onclick="window.print()">Print</button>
+    <label><input type="checkbox" id="paid"> Mark Paid</label>
+    <button onclick="saveInv()">Save Invoice</button>
+    <button onclick="printInv()">Print</button>
   </div>
-  <div id="invPrint" class="invoice-wrap" style="display:none"></div>
 </div>
 
+<!-- BROWSE -->
 <div id="browse" class="tab">
   <div class="card row" style="align-items:center">
-    <input placeholder="Search invoices…" oninput="browseSearch(this.value)" style="max-width:250px">
+    <input placeholder="Search…" oninput="filterInv(this.value)" style="max-width:250px" class="no-print">
   </div>
   <div class="card">
-    <table id="invTable"><thead><tr><th>Invoice #</th><th>Date</th><th>Customer</th><th>Total</th><th>Paid</th></tr></thead><tbody></tbody></table>
+    <table id="invTbl"><thead><tr><th>Invoice</th><th>Date</th><th>Customer</th><th>Total</th><th>Paid</th></tr></thead><tbody></tbody></table>
   </div>
 </div>
 
+<!-- PRINT AREA -->
+<div id="printArea"></div>
 <div id="toast" class="toast"></div>
+
 <script>
+/* ---------- base64 logo ---------- */
+let logoB64='';
+/* ---------- csv ---------- */
+const enc=v=>typeof v==='string'&&v.match(/[,"]/)?'"'+v.replace(/"/g,'""')+'"':v;
+const parse=txt=>txt.trim().split(/\r?\n/).map(l=>{
+  const r=[], cur=['']; let q=0;
+  for(let i=0;i<l.length;i++){
+    const c=l[i], n=l[i+1]||'';
+    if(c==='"'){if(n==='"'){cur[cur.length-1]+='"'; i++;} else q=!q;}
+    else if(c===','&&!q){cur.push('');}
+    else cur[cur.length-1]+=c;
+  }
+  return cur;
+});
+let products=[], invoices=[];
 /* ---------- helpers ---------- */
 const $=q=>document.querySelector(q);
-const toast=(m,s=3000)=>{const t=$('#toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),s);}
-function csvEscape(v){return typeof v==='string' && (v.includes(',') || v.includes('"')) ? '"' + v.replace(/"/g,'""') + '"' : v;}
-function downloadCSV(filename,csv){const b=new Blob([csv],{type:'text/csv'}); const u=URL.createObjectURL(b); const a=document.createElement('a'); a.href=u; a.download=filename; a.click(); URL.revokeObjectURL(u);}
-function parseCSV(txt){
-  const lines=txt.trim().split(/\r?\n/); const res=[];
-  for(let line of lines){
-    const row=[]; let cur=''; let inQ=false;
-    for(let i=0;i<line.length;i++){
-      const c=line[i];
-      if(c==='"' && line[i-1]!=='\\'){inQ=!inQ; continue;}
-      if(c===',' && !inQ){row.push(cur); cur=''; continue;}
-      cur+=c;
-    }
-    row.push(cur); res.push(row);
-  }
-  return res;
-}
+const toast=(m,t=2500)=>{const x=$('#toast'); x.textContent=m; x.classList.add('show'); setTimeout(()=>x.classList.remove('show'),t);}
+const dl=(fn,csv)=>{const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv); a.download=fn; a.click();}
 /* ---------- settings ---------- */
-function loadSettings(){
-  const s=JSON.parse(localStorage.getItem('biz')||'{}');
-  $('#bizName').textContent=s.name||'My Business';
-  $('#bizNameIn').value=s.name||'';
-  $('#bizAddr').value=s.address||'';
-  $('#bizPhone').value=s.phone||'';
-  $('#bizEmail').value=s.email||'';
-  $('#bizCR').value=s.cr||'';
-  $('#bizVAT').value=s.vat||'';
-  if(s.logo){$('#logoPreview').src=s.logo; $('#logoPreview').style.display='block';}
-  $('#bizContact').textContent=[s.phone,s.email].filter(Boolean).join(' • ');
+function loadBiz(){
+  const b=JSON.parse(localStorage.getItem('biz')||'{}');
+  $('#bizTitle').textContent=b.name||'My Business';
+  $('#bName').value=b.name||''; $('#bAddr').value=b.address||''; $('#bPhone').value=b.phone||''; $('#bEmail').value=b.email||''; $('#bCR').value=b.cr||''; $('#bVAT').value=b.vat||'';
+  logoB64=b.logo||''; if(logoB64){$('#logoPrev').src=logoB64; $('#logoPrev').style.display='block';}
 }
-function saveSettings(){
-  const s={
-    name:$('#bizNameIn').value.trim()||'My Business',
-    address:$('#bizAddr').value.trim(),
-    phone:$('#bizPhone').value.trim(),
-    email:$('#bizEmail').value.trim(),
-    cr:$('#bizCR').value.trim(),
-    vat:$('#bizVAT').value.trim(),
-    logo:localStorage.getItem('logoBase64')||''
-  };
-  localStorage.setItem('biz',JSON.stringify(s));
-  loadSettings();
-  toast('Settings saved');
+function saveBiz(){
+  const b={name:$('#bName').value.trim()||'My Business',address:$('#bAddr').value.trim(),phone:$('#bPhone').value.trim(),email:$('#bEmail').value.trim(),cr:$('#bCR').value.trim(),vat:$('#bVAT').value.trim(),logo:logoB64};
+  localStorage.setItem('biz',JSON.stringify(b));
+  loadBiz(); toast('Saved');
 }
-$('#logoFile').addEventListener('change',e=>{
+$('#bLogo').addEventListener('change',e=>{
   const f=e.target.files[0]; if(!f)return;
   const r=new FileReader();
-  r.onload=ev=>{
-    const b=ev.target.result;
-    localStorage.setItem('logoBase64',b);
-    $('#logoPreview').src=b; $('#logoPreview').style.display='block';
-  };
+  r.onload=ev=>{logoB64=ev.target.result; localStorage.setItem('logoFileName',f.name);};
   r.readAsDataURL(f);
 });
 /* ---------- products ---------- */
-let products=[];
-function renderProdTable(arr=products){
-  const t=$('#prodTable tbody'); t.innerHTML='';
-  arr.forEach((p,i)=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`
-    <td>${p[0]}</td>
-    <td>${p[1]}</td>
-    <td>${p[2]}</td>
-    <td>${p[3]}</td>
-    <td class="no-print"><button class="small" onclick="delProd(${i})">Del</button></td>`;
-    t.appendChild(tr);
-  });
-}
-function loadProdCSV(){
-  const f=$('#prodFile').files[0]; if(!f){toast('Choose products.csv'); return;}
+function loadProds(){
+  const f=$('#prodCsv').files[0]; if(!f){toast('Choose products.csv'); return;}
   const r=new FileReader();
-  r.onload=e=>{
-    const data=parseCSV(e.target.result);
-    products=data.slice(1).filter(r=>r.length>=4);
-    renderProdTable();
-    toast('Products loaded');
-  };
+  r.onload=e=>{products=parse(e.target.result).slice(1).filter(r=>r.length>=4); renderProds(); toast('Products loaded');};
   r.readAsText(f);
 }
-function saveProdCSV(){
+function saveProds(){
   if(!products.length){toast('No products'); return;}
-  let csv='ProductCode,Description,UnitPrice,TaxPercent\n';
-  products.forEach(p=>csv+=p.map(csvEscape).join(',')+'\n');
-  downloadCSV('products.csv',csv);
+  const csv='ProductCode,Description,UnitPrice,TaxPercent\n'+products.map(p=>p.map(enc).join(',')).join('\n');
+  dl('products.csv',csv);
 }
-function addProduct(){
+function renderProds(arr=products){
+  const t=$('#prodTbl tbody'); t.innerHTML='';
+  arr.forEach((p,i)=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td>${p[0]}</td><td>${p[1]}</td><td>${p[2]}</td><td>${p[3]}</td><td class="no-print"><button class="small" onclick="delProd(${i})">Del</button></td>`;
+    t.appendChild(tr);
+  });
+}
+function addProd(){
   const c=$('#pCode').value.trim(), d=$('#pDesc').value.trim(), p=parseFloat($('#pPrice').value), t=parseFloat($('#pTax').value)||0;
-  if(!c||!d||isNaN(p)){toast('Fill fields correctly'); return;}
-  products.push([c,d,p,t]);
-  renderProdTable();
+  if(!c||!d||isNaN(p)){toast('Check fields'); return;}
+  products.push([c,d,p,t]); renderProds(); saveProds();
   $('#pCode').value=$('#pDesc').value=$('#pPrice').value=$('#pTax').value='';
 }
-function delProd(i){products.splice(i,1); renderProdTable();}
-function searchProd(v){
+function delProd(i){products.splice(i,1); renderProds(); saveProds();}
+function filterProd(v){
   const f=products.filter(p=>p[1].toLowerCase().includes(v.toLowerCase())||p[0].toLowerCase().includes(v.toLowerCase()));
-  renderProdTable(f);
+  renderProds(f);
 }
 /* ---------- invoice ---------- */
-let lines=[];
-function genInvID(){
-  if(!invoices.length) return '0001';
-  const max=Math.max(...invoices.map(r=>parseInt(r[0])));
-  return String(max+1).padStart(4,'0');
-}
-function resetInvoice(){
-  $('#invID').value=genInvID();
-  $('#invDate').value=new Date().toISOString().slice(0,10);
+let items=[], invNo=1;
+function resetInv(){
+  invNo=invoices.length?Math.max(...invoices.map(r=>+r[0]))+1:1;
+  $('#iNum').value=String(invNo).padStart(4,'0');
+  $('#iDate').value=new Date().toISOString().slice(0,10);
   $('#cName').value=$('#cPhone').value=$('#cEmail').value=$('#cAddr').value='';
-  lines=[]; renderLines(); calc();
+  items=[]; renderItems(); calcTotals();
 }
-function renderLines(){
-  const t=$('#lineTable tbody'); t.innerHTML='';
-  lines.forEach((l,i)=>{
+function renderItems(){
+  const t=$('#itemTbl tbody'); t.innerHTML='';
+  items.forEach((it,i)=>{
     const tr=document.createElement('tr');
-    tr.innerHTML=`
-    <td>${l.desc}</td>
-    <td>${l.qty}</td>
-    <td>${l.unit.toFixed(2)}</td>
-    <td>${l.disc}</td>
-    <td>${l.total.toFixed(2)}</td>
-    <td class="no-print"><button class="small" onclick="delLine(${i})">Del</button></td>`;
+    tr.innerHTML=`<td>${it.desc}</td><td>${it.qty}</td><td>${it.price.toFixed(2)}</td><td>${it.disc}</td><td>${it.total.toFixed(2)}</td><td class="no-print"><button class="small" onclick="delItem(${i})">Del</button></td>`;
     t.appendChild(tr);
   });
 }
-function calc(){
+function calcTotals(){
   let sub=0, tax=0;
-  lines.forEach(l=>{
-    const amt=l.qty*l.unit*(1-l.disc/100);
-    sub+=amt;
-    tax+=amt*(l.tax/100);
+  items.forEach(it=>{
+    const amt=it.qty*it.price*(1-it.disc/100);
+    sub+=amt; tax+=amt*(it.tax/100);
   });
-  $('#subTotal').textContent=sub.toFixed(2);
-  $('#taxTotal').textContent=tax.toFixed(2);
-  $('#grandTotal').textContent=(sub+tax).toFixed(2);
+  $('#st').textContent=sub.toFixed(2); $('#tx').textContent=tax.toFixed(2); $('#gt').textContent=(sub+tax).toFixed(2);
 }
-function addLine(){
-  const desc=$('#itemSearch').value.trim();
-  const qty=parseInt($('#itemQty').value)||1;
-  const disc=parseFloat($('#itemDisc').value)||0;
-  const p=products.find(pr=>pr[1]===desc);
-  if(!p){toast('Select valid product'); return;}
-  const unit=parseFloat(p[2]), tx=parseFloat(p[3]);
-  const total=qty*unit*(1-disc/100);
-  lines.push({desc,qty,unit,disc,tax:tx,total});
-  $('#itemSearch').value=$('#itemQty').value='1'; $('#itemDisc').value='0';
-  $('#searchDrop').style.display='none';
-  renderLines(); calc();
-}
-function delLine(i){lines.splice(i,1); renderLines(); calc();}
-function searchItem(v){
-  const drop=$('#searchDrop');
-  if(!v){drop.style.display='none'; return;}
+function suggestItem(v){
+  const d=$('#suggest'); if(!v){d.style.display='none'; return;}
   const f=products.filter(p=>p[1].toLowerCase().includes(v.toLowerCase()));
-  drop.innerHTML='';
-  f.forEach(p=>{
-    const d=document.createElement('div');
-    d.textContent=p[1]; d.style.padding='.5rem'; d.style.cursor='pointer';
-    d.onclick=()=>{$('#itemSearch').value=p[1]; drop.style.display='none';};
-    drop.appendChild(d);
+  d.innerHTML=''; f.forEach(p=>{
+    const o=document.createElement('div'); o.textContent=p[1]; o.style.padding='.5rem'; o.style.cursor='pointer';
+    o.onclick=()=>{$('#itSearch').value=p[1]; d.style.display='none';};
+    d.appendChild(o);
   });
-  drop.style.display=f.length?'block':'none';
+  d.style.display=f.length?'block':'none';
 }
-function saveInvoice(){
-  if(!lines.length){toast('Add items'); return;}
-  const invID=$('#invID').value, dt=$('#invDate').value, cName=$('#cName').value.trim(), cPhone=$('#cPhone').value.trim(), cEmail=$('#cEmail').value.trim(), cAddr=$('#cAddr').value.trim();
-  if(!cName){toast('Customer name required'); return;}
+function addItem(){
+  const desc=$('#itSearch').value.trim(); const p=products.find(pr=>pr[1]===desc);
+  if(!p){toast('Pick product'); return;}
+  const qty=parseInt($('#itQty').value)||1, disc=parseFloat($('#itDisc').value)||0;
+  const price=parseFloat(p[2]), tax=parseFloat(p[3]);
+  const total=qty*price*(1-disc/100);
+  items.push({desc,qty,price,disc,tax,total}); renderItems(); calcTotals();
+  $('#itSearch').value=''; $('#itQty').value='1'; $('#itDisc').value='0'; $('#suggest').style.display='none';
+}
+function delItem(i){items.splice(i,1); renderItems(); calcTotals();}
+function saveInv(){
+  if(!items.length){toast('Add items'); return;}
   const biz=JSON.parse(localStorage.getItem('biz')||'{}');
-  const items=JSON.stringify(lines);
-  const sub=parseFloat($('#subTotal').textContent), tax=parseFloat($('#taxTotal').textContent), grand=parseFloat($('#grandTotal').textContent), paid=$('#paid').checked?'Yes':'No';
-  const row=[invID,dt,cName,cPhone,cEmail,cAddr,biz.name||'',biz.address||'',biz.phone||'',biz.email||'',biz.cr||'',biz.vat||'',localStorage.getItem('logoFileName')||'',items,sub,tax,grand,paid];
-  invoices.push(row);
-  downloadCSV('invoices.csv','InvoiceID,Date,CustomerName,CustomerPhone,CustomerEmail,CustomerAddress,BusinessName,BusinessAddress,BusinessPhone,BusinessEmail,CRNo,VATNo,LogoFileName,ItemsJSON,SubTotal,TaxTotal,GrandTotal,PaidStatus\n'+invoices.map(r=>r.map(csvEscape).join(',')).join('\n'));
-  toast('Invoice saved');
-  resetInvoice();
-  loadBrowse();
+  const [id,dt]=[$('#iNum').value,$('#iDate').value];
+  const [cn,cp,ce,ca]=[$('#cName').value.trim(),$('#cPhone').value.trim(),$('#cEmail').value.trim(),$('#cAddr').value.trim()];
+  if(!cn){toast('Customer name required'); return;}
+  const its=JSON.stringify(items);
+  const [sub,tax,gt]=[parseFloat($('#st').textContent),parseFloat($('#tx').textContent),parseFloat($('#gt').textContent)];
+  const paid=$('#paid').checked?'Yes':'No';
+  invoices.push([id,dt,cn,cp,ce,ca,biz.name||'',biz.address||'',biz.phone||'',biz.email||'',biz.cr||'',biz.vat||'',localStorage.getItem('logoFileName')||'',its,sub,tax,gt,paid]);
+  saveInvCSV(); resetInv(); toast('Invoice saved');
 }
-/* ---------- browse ---------- */
-let invoices=[];
-function loadInvCSV(){
-  const f=$('#invFile'); if(!f.files.length){return;}
-  const r=new FileReader();
-  r.onload=e=>{
-    const data=parseCSV(e.target.result);
-    invoices=data.slice(1).filter(r=>r.length>=18);
-    loadBrowse();
-  };
-  r.readAsText(f.files[0]);
+function saveInvCSV(){
+  const csv='InvoiceID,Date,CustomerName,CustomerPhone,CustomerEmail,CustomerAddress,BusinessName,BusinessAddress,BusinessPhone,BusinessEmail,CRNo,VATNo,LogoFileName,ItemsJSON,SubTotal,TaxTotal,GrandTotal,PaidStatus\n'+invoices.map(r=>r.map(enc).join(',')).join('\n');
+  dl('invoices.csv',csv);
 }
-function loadBrowse(){
-  const t=$('#invTable tbody'); t.innerHTML='';
-  invoices.forEach(r=>{
-    const tr=document.createElement('tr');
-    tr.innerHTML=`<td><a href="#" onclick="viewInv('${r[0]}'); return false">${r[0]}</a></td><td>${r[1]}</td><td>${r[2]}</td><td>${parseFloat(r[16]).toFixed(2)}</td><td>${r[17]}</td>`;
-    t.appendChild(tr);
-  });
-}
-function browseSearch(v){
-  const rows=Array.from($('#invTable tbody').rows);
-  rows.forEach(row=>row.style.display=(row.textContent.toLowerCase().includes(v.toLowerCase())?'':'none'));
-}
-function viewInv(id){
-  const r=invoices.find(rr=>rr[0]===id); if(!r){toast('Invoice not found'); return;}
-  const [invID,dt,cName,cPhone,cEmail,cAddr,bizName,bizAddr,bizPhone,bizEmail,bizCR,bizVAT,logoFn,itemsJSON,sub,tax,grand,paid]=r;
-  const lines=JSON.parse(itemsJSON);
+function printInv(){
   const biz=JSON.parse(localStorage.getItem('biz')||'{}');
-  const logo=biz.logo||'';
-  let html=`
-  <div class="invoice-wrap">
-  ${logo?`<div class="watermark" style="background-image:url('${logo}')"></div>`:''}
+  const [id,dt]=[$('#iNum').value,$('#iDate').value];
+  const [cn,cp,ce,ca]=[$('#cName').value.trim(),$('#cPhone').value.trim(),$('#cEmail').value.trim(),$('#cAddr').value.trim()];
+  const [sub,tax,gt]=[$('#st').textContent,$('#tx').textContent,$('#gt').textContent];
+  const paid=$('#paid').checked;
+  let h=`
   <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem">
-    ${logo?`<img src="${logo}" class="invoice-logo">`:''}
+    ${logoB64?`<img src="${logoB64}" style="max-height:60px">`:''}
     <div>
-      <h2>${bizName}</h2>
-      <div>${bizAddr} • ${bizPhone} • ${bizEmail}</div>
-      <div>CR: ${bizCR} • VAT: ${bizVAT}</div>
+      <h2>${biz.name||'My Business'}</h2>
+      <div>${biz.address||''} • ${biz.phone||''} • ${biz.email||''}</div>
+      <div>CR: ${biz.cr||''} • VAT: ${biz.vat||''}</div>
     </div>
   </div>
   <hr>
   <div class="row" style="margin-top:1rem">
-    <div class="col">
-      <h3>Invoice #${invID}</h3>
-      <div>Date: ${dt}</div>
-    </div>
-    <div class="col">
-      <h3>Bill To</h3>
-      <div>${cName}</div>
-      <div>${cAddr}</div>
-      <div>${cPhone} • ${cEmail}</div>
-    </div>
+    <div><h3>Invoice #${id}</h3><div>Date: ${dt}</div></div>
+    <div><h3>Bill To</h3><div>${cn}</div><div>${ca}</div><div>${cp} • ${ce}</div></div>
   </div>
-  <table style="margin-top:1rem; width:100%">
-    <thead><tr><th>Description</th><th>Qty</th><th>Unit Price</th><th>Disc %</th><th>Total</th></tr></thead>
+  <table style="margin-top:1rem; width:100%; border-collapse:collapse">
+    <thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Disc %</th><th>Total</th></tr></thead>
     <tbody>`;
-  lines.forEach(l=>{
-    html+=`<tr><td>${l.desc}</td><td>${l.qty}</td><td>${l.unit.toFixed(2)}</td><td>${l.disc}</td><td>${l.total.toFixed(2)}</td></tr>`;
-  });
-  html+=`</tbody></table>
+  items.forEach(it=>h+=`<tr><td>${it.desc}</td><td>${it.qty}</td><td>${it.price.toFixed(2)}</td><td>${it.disc}</td><td>${it.total.toFixed(2)}</td></tr>`);
+  h+=`</tbody></table>
   <div style="margin-top:1rem; text-align:right">
-    <div>Subtotal: <b>${parseFloat(sub).toFixed(2)}</b></div>
-    <div>Tax: <b>${parseFloat(tax).toFixed(2)}</b></div>
-    <div>Grand Total: <b>${parseFloat(grand).toFixed(2)}</b></div>
-    ${paid==='Yes'?'<div style="margin-top:1rem; color:var(--a); font-weight:bold">PAID</div>':''}
-  </div>
+    <div>Subtotal: <b>${sub}</b></div><div>Tax: <b>${tax}</b></div><div>Grand Total: <b>${gt}</b></div>
+    ${paid?'<div style="margin-top:1rem; color:var(--a); font-weight:bold">PAID</div>':''}
   </div>`;
-  const p=document.createElement('div');
-  p.innerHTML=html;
-  document.body.appendChild(p);
+  if(logoB64) h+=`<div style="position:fixed; inset:0; background:url('${logoB64}') center/contain no-repeat; opacity:.08; pointer-events:none; z-index:0"></div>`;
+  $('#printArea').innerHTML=h;
   window.print();
-  document.body.removeChild(p);
 }
-/* ---------- tabs ---------- */
+function filterInv(v){
+  const rows=Array.from($('#invTbl tbody').rows);
+  rows.forEach(r=>r.style.display=r.textContent.toLowerCase().includes(v.toLowerCase())?'':'none');
+}
+function loadBrowse(){
+  const t=$('#invTbl tbody'); t.innerHTML='';
+  invoices.forEach(r=>{
+    const tr=document.createElement('tr');
+    tr.innerHTML=`<td><a href="#" onclick="viewOld('${r[0]}'); return false">${r[0]}</a></td><td>${r[1]}</td><td>${r[2]}</td><td>${parseFloat(r[16]).toFixed(2)}</td><td>${r[17]}</td>`;
+    t.appendChild(tr);
+  });
+}
+function viewOld(id){
+  const r=invoices.find(rr=>rr[0]===id); if(!r){toast('Not found'); return;}
+  const [iid,dt,cn,cp,ce,ca,bn,ba,bp,be,bcr,bvat,fn,its,sub,tax,gt,paid]=r;
+  const itsOb=JSON.parse(its);
+  let h=`
+  <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem">
+    ${logoB64?`<img src="${logoB64}" style="max-height:60px">`:''}
+    <div>
+      <h2>${bn}</h2>
+      <div>${ba} • ${bp} • ${be}</div>
+      <div>CR: ${bcr} • VAT: ${bvat}</div>
+    </div>
+  </div>
+  <hr>
+  <div class="row" style="margin-top:1rem">
+    <div><h3>Invoice #${iid}</h3><div>Date: ${dt}</div></div>
+    <div><h3>Bill To</h3><div>${cn}</div><div>${ca}</div><div>${cp} • ${ce}</div></div>
+  </div>
+  <table style="margin-top:1rem; width:100%; border-collapse:collapse">
+    <thead><tr><th>Description</th><th>Qty</th><th>Unit</th><th>Disc %</th><th>Total</th></tr></thead>
+    <tbody>`;
+  itsOb.forEach(it=>h+=`<tr><td>${it.desc}</td><td>${it.qty}</td><td>${it.price.toFixed(2)}</td><td>${it.disc}</td><td>${it.total.toFixed(2)}</td></tr>`);
+  h+=`</tbody></table>
+  <div style="margin-top:1rem; text-align:right">
+    <div>Subtotal: <b>${parseFloat(sub).toFixed(2)}</b></div><div>Tax: <b>${parseFloat(tax).toFixed(2)}</b></div><div>Grand Total: <b>${parseFloat(gt).toFixed(2)}</b></div>
+    ${paid==='Yes'?'<div style="margin-top:1rem; color:var(--a); font-weight:bold">PAID</div>':''}
+  </div>`;
+  if(logoB64) h+=`<div style="position:fixed; inset:0; background:url('${logoB64}') center/contain no-repeat; opacity:.08; pointer-events:none; z-index:0"></div>`;
+  $('#printArea').innerHTML=h;
+  window.print();
+}
+/* ---------- nav ---------- */
 document.querySelectorAll('.tabBtn').forEach(b=>{
   b.onclick=()=>{
     document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     document.querySelectorAll('.tabBtn').forEach(t=>t.classList.remove('active'));
-    $(`#${b.dataset.tab}`).classList.add('active');
-    b.classList.add('active');
-    if(b.dataset.tab==='invoice') resetInvoice();
+    $(`#${b.dataset.tab}`).classList.add('active'); b.classList.add('active');
+    if(b.dataset.tab==='invoice') resetInv();
     if(b.dataset.tab==='browse') loadBrowse();
   };
 });
 /* ---------- init ---------- */
-loadSettings();
-$('#invDate').value=new Date().toISOString().slice(0,10);
+loadBiz(); resetInv();
 </script>
 </body>
 </html>
